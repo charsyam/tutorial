@@ -20,13 +20,15 @@ int main(int argc, char *argv[])
     int numbytes;
 
 
+    memset(&serverINETAddress, 0, sizeof(serverINETAddress));
     serverLen = sizeof(struct sockaddr); /* struct length */    
     serverSockAddrPtr = (struct sockaddr *)&serverINETAddress;
 
+
     serverINETAddress.sin_family = AF_INET;      /* host byte order */
     serverINETAddress.sin_port = htons(UDPPORT);  /* short, network byte order */
-    serverINETAddress.sin_addr.s_addr = INADDR_BROADCAST; /* BROADCAST */
-    bzero(&(serverINETAddress.sin_zero),8);
+//    serverINETAddress.sin_addr.s_addr = INADDR_BROADCAST; /* BROADCAST */
+    inet_aton("255.255.255.255", &serverINETAddress.sin_addr.s_addr);
 
     if ((serverFd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) 
     {
