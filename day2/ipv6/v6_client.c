@@ -67,6 +67,9 @@ char **envp;
 
   for (r=res; r; r = r->ai_next) {
     sockfd6 = socket(r->ai_family, r->ai_socktype, r->ai_protocol);
+    struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)r->ai_addr;
+    printf("if : %d\n", sin6->sin6_scope_id);
+    sin6->sin6_scope_id = if_nametoindex("eth0");
     if (connect(sockfd6, r->ai_addr, r->ai_addrlen) < 0)
     {
       e_save = errno;
@@ -74,7 +77,7 @@ char **envp;
       errno = e_save;
       fprintf(stderr, "%s: Failed attempt to %s.\n", argv[0], 
 		get_ip_str((struct sockaddr *)r->ai_addr, buf, BUFLEN));
-      perror("Socket error");
+      continue;
     } else {
       snprintf(s, BUFLEN, "%s: Succeeded to %s.", argv[0],
 		get_ip_str((struct sockaddr *)r->ai_addr, buf, BUFLEN));
