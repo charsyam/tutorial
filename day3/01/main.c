@@ -9,6 +9,8 @@
 #include <strings.h>
 #include <unistd.h>
 
+#include "util.h"
+
 #define UDPPORT     2001    
 #define TCPPORT     2002
 
@@ -120,24 +122,36 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    char *ip = NULL;
+    localIP(&ip);
+    printf("ip: %s\n", ip);
+
     broadcast();
+
+    struct timeval tm;
 
     while(1) {
         FD_ZERO(&readfds);
         FD_SET(stfd, &readfds);
         FD_SET(sufd, &readfds);
 
-        ret = select(sufd+1, &readfds, NULL, NULL, NULL);
+        tm.tv_sec = 1;
+        tm.tv_usec = 0;
+        ret = select(sufd+1, &readfds, NULL, NULL, &tm);
         if (ret == -1) {
             fprintf(stderr, "ERROR: socket select error\n");
             break;
         }
-
-        if (FD_ISSET(stfd, &readfds)) {
-            process_tcp(stfd);
-        }
-        if (FD_ISSET(sufd, &readfds)) {
-            process_udp(sufd);
+        
+        if (ret != 0) {
+            if (FD_ISSET(stfd, &readfds)) {
+                process_tcp(stfd);
+            }
+            if (FD_ISSET(sufd, &readfds)) {
+                process_udp(sufd);
+            }
+        } else {
+            printf("Timeout\n");
         }
     } 
 
