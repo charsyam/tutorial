@@ -9,6 +9,8 @@
 #include <strings.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 
 #include "util.h"
 
@@ -16,6 +18,11 @@
 #define TCPPORT     2002
 
 char server_ip[32];
+
+struct file {
+    char name[128];
+    int size;
+};
 
 int createTcpServerSocket(struct sockaddr_in *addr) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -65,6 +72,69 @@ int process_udp(int ufd, char *localip) {
     return 0;
 }
 
+void parseFile(xmlNode * cur_node, struct file *f) {
+    xmlNode *child;
+    for (child = cur_node; child; child = child->next) {
+        if (child->type == XML_ELEMENT_NODE && !strcmp(child->name, "name")) {
+            xmlNode *node;
+            for (node = child->children; node; node = node->next) {
+                if (node->type == XML_TEXT_NODE) {
+                    strcpy(f->name, node->content);
+                }
+            }
+        }
+        if (child->type == XML_ELEMENT_NODE && !strcmp(child->name, "size")) {
+            xmlNode *node;
+            for (node = child->children; node; node = node->next) {
+                if (node->type == XML_TEXT_NODE) {
+                    f->size = atoi(node->content);
+                }
+            }
+        }
+    }
+}
+
+
+void print_element_names(xmlNode * node)
+{
+    xmlNode *cur_node = NULL;
+
+    for (cur_node = node; cur_node; cur_node = cur_node->next) {
+        if (cur_node->type == XML_ELEMENT_NODE) {
+            if (!strcmp(cur_node->name, "file")) {
+                if (cur_node->children) {
+                    struct file f;
+                    parseFile(cur_node->children, &f);
+                    printf("name: %s, size: %d\n", f.name, f.size);
+                }
+            }
+        }
+    }
+}
+
+void parseXmlReal(char *filename) {
+    xmlDocPtr doc; /* the resulting document tree */
+
+    doc = xmlReadFile(filename, NULL, 0);
+    if (doc == NULL) {
+        fprintf(stderr, "Failed to parse %s\n", filename);
+    return;
+    }
+
+    xmlNode *root_element = NULL;
+    root_element = xmlDocGetRootElement(doc);
+    print_element_names(root_element->children);
+
+    xmlFreeDoc(doc);
+}
+
+int parseXml(char *filename) {
+    LIBXML_TEST_VERSION
+    parseXmlReal(filename);
+    xmlCleanupParser();
+    xmlMemoryDump();
+    return 0;
+}
 
 int process_tcp(char *ip) {
     struct sockaddr_in addr;
@@ -91,7 +161,8 @@ int process_tcp(char *ip) {
     char buffer[4096];
     int numbytes;
 
-    FILE *fp = fopen("1", "w");
+    char *filename="1";
+    FILE *fp = fopen(filename, "w");
     int find_header = 0;
 
     while(1) {
@@ -110,6 +181,7 @@ int process_tcp(char *ip) {
     }
 
     fclose(fp);
+    parseXml(filename);
 
     close(sfd);
     return 0;
