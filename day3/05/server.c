@@ -56,6 +56,8 @@ int process_udp(int ufd) {
     const char *ipaddr = inet_ntop(AF_INET, (void *)&addr.sin_addr, ip, sizeof(ip));
     printf("get_broadcast: %s:%d\n", ipaddr, ntohs(addr.sin_port));
 
+    addr.sin_port = htons(UDPPORT);
+    sendto(ufd, buffer, numbytes, 0, (struct sockaddr *)&addr, len);
     return 0;
 }
 
@@ -102,7 +104,7 @@ int process_child(int client_fd) {
         return 0;
     }
 
-    char *filename = &buffer[4];
+    char *filename = "test.xml";
     printf("filename: %s\n", filename);
 
     struct stat buf;
@@ -140,6 +142,7 @@ int process_tcp(int tfd) {
     socklen_t len = sizeof(addr);
     int client_fd = accept(tfd, (struct sockaddr *)&addr, &len);
     if (client_fd == -1) {
+        fprintf(stderr, "ERROR: accept error\n");
         return -1;
     }
 

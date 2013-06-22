@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<files>
+    <file>
+        <name>test1</name>
+        <size>1024</size>
+    </file>
+    <file>
+        <name>test2</name>
+        <size>1024</size>
+    </file>
+    <file>
+        <name>test3</name>
+        <size>1024</size>
+    </file>
+    <file>
+        <name>test4</name>
+        <size>1024</size>
+    </file>
+</files>
