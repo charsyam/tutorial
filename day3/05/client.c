@@ -46,7 +46,7 @@ int createUdpServerSocket(struct sockaddr_in *addr) {
     return sock;
 }
 
-int process_udp(int ufd) {
+int process_udp(int ufd, char *localip) {
     char buffer[1024];
     struct sockaddr_in addr;
     socklen_t len = sizeof(addr);
@@ -54,7 +54,12 @@ int process_udp(int ufd) {
     int numbytes = recvfrom(ufd, buffer, sizeof(buffer), 0, (struct sockaddr *)&addr, &len);
     buffer[numbytes] = 0;
 
-    const char *ipaddr = inet_ntop(AF_INET, (void *)&addr.sin_addr, server_ip, sizeof(server_ip));
+    char ip[32];
+    const char *ipaddr = inet_ntop(AF_INET, (void *)&addr.sin_addr, ip, sizeof(ip));
+    if (!strcmp(ip, localip)) 
+	    return 0;
+
+    strcpy(server_ip, ip);
     printf("get_broadcast: %s:%d\n", ipaddr, ntohs(addr.sin_port));
 
     return 0;
@@ -86,14 +91,25 @@ int process_tcp(char *ip) {
     char buffer[4096];
     int numbytes;
 
+    FILE *fp = fopen("1", "w");
+    int find_header = 0;
+
     while(1) {
         numbytes = recv(sfd, buffer, 4096, 0);
         if (numbytes == 0)
             break;
 
-        buffer[numbytes] = 0;
-        printf("%s", buffer);        
+        if (find_header == 0) {
+            char *ptr = strstr(buffer, "\r\n\r\n");
+            ptr += 4;
+            int pos = ptr - buffer; 
+            fwrite(ptr, 1, numbytes - pos, fp);
+        } else {
+            fwrite(buffer, 1, numbytes, fp);
+        }
     }
+
+    fclose(fp);
 
     close(sfd);
     return 0;
@@ -140,7 +156,7 @@ int main(int argc, char *argv[])
         
         if (ret != 0) {
             if (FD_ISSET(sufd, &readfds)) {
-                process_udp(sufd);
+                process_udp(sufd, ip);
             }
         } else {
             if (server_ip[0] == 0) {
