@@ -8,7 +8,6 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
-#include <sys/stat.h>
 
 #include "util.h"
 
@@ -54,108 +53,47 @@ int process_udp(int ufd) {
 
     char ip[32];
     const char *ipaddr = inet_ntop(AF_INET, (void *)&addr.sin_addr, ip, sizeof(ip));
-    printf("get_broadcast: %s:%d\n", ipaddr, ntohs(addr.sin_port));
+    printf("get_multicast: %s:%d\n", ipaddr, ntohs(addr.sin_port));
 
     return 0;
-}
-
-int process_child(int client_fd) {
-    char buffer[4096];
-    char *ptr = buffer;
-    int size = sizeof(buffer);
-    int numbytes;
-    int readed = 0;
-
-    while(1) {
-        numbytes = recv(client_fd, ptr, size, 0);
-        if (numbytes == 0) {
-            close(client_fd);
-            return 0;
-        }
-        ptr[numbytes] = 0;
-        readed += numbytes;
-
-        if (ptr[numbytes-1] == '\n'){
-            if (ptr[numbytes-2] == '\r')
-                ptr[numbytes-2] = 0;
-            else
-                ptr[numbytes-1] = 0;
-
-            break;
-        }
-
-        if (readed > 1024) {
-            char *resp = "500 Invalid Request\r\n\r\n";
-            send(client_fd, resp, strlen(resp), 0);
-            close(client_fd);
-            return 0;
-        }
-    }
-
-        if ((buffer[0] == 'g' || buffer[0] == 'G') &&
-        (buffer[1] == 'e' || buffer[1] == 'E') &&
-        (buffer[2] == 't' || buffer[2] == 'T')) {
-    } else {
-        char *resp = "500 Invalid Command\r\n\r\n";
-        send(client_fd, resp, strlen(resp), 0);
-        close(client_fd);
-        return 0;
-    }
-
-    char *filename = &buffer[4];
-    printf("filename: %s\n", filename);
-
-    struct stat buf;
-    if (stat(filename, &buf) == -1) {
-        char *resp = "500 Not ExistFile\r\n\r\n";
-        send(client_fd, resp, strlen(resp), 0);
-        close(client_fd);
-        return 0;
-    }
-
-    char *resp = "200 OK\r\n";
-    send(client_fd, resp, strlen(resp), 0);
-
-    char sizebuffer[1024];
-    snprintf(sizebuffer, sizeof(sizebuffer), "Content-Length: %d\r\n\r\n",
-            (int)buf.st_size);
-    send(client_fd, sizebuffer, strlen(sizebuffer), 0);
-
-    FILE *fp = fopen(filename, "r");
-    while(1) {
-        int readed = fread(sizebuffer, 1, 1024, fp);
-        if (readed == 0)
-            break;
-
-        send(client_fd, sizebuffer, readed, 0);
-    }
-
-    fclose(fp);
-    close(client_fd);
-    return 1;
 }
 
 int process_tcp(int tfd) {
     struct sockaddr_in addr;
     socklen_t len = sizeof(addr);
-    int client_fd = accept(tfd, (struct sockaddr *)&addr, &len);
-    if (client_fd == -1) {
+    int newfd = accept(tfd, (struct sockaddr *)&addr, &len);
+    if (newfd == -1) {
         return -1;
     }
 
     char ip[32];
     const char *ipaddr = inet_ntop(AF_INET, (void *)&addr.sin_addr, ip, sizeof(ip));
     printf("client: %s:%d\n", ipaddr, ntohs(addr.sin_port));
+    close(newfd);
+    return 0;
+}
 
-    if (fork() == 0) {
-        close(tfd);
-        process_child(client_fd);
-        exit(0);
-    } else {
-        close(client_fd);
+void multicast() {
+    struct sockaddr_in addr;
+    socklen_t len = sizeof(addr);
+    memset(&addr, 0, sizeof(addr));
+
+    int ufd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (ufd == -1) {
+        return;
     }
 
-    return 0;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(UDPPORT);
+    inet_aton("226.0.0.1", &addr.sin_addr);
+
+    int ttl=1000;
+    setsockopt(ufd, IPPROTO_IP, IP_MULTICAST_TTL, (void *)&ttl, sizeof(ttl)); 
+    char *msg = "notification";
+    int numbytes = sendto(ufd, msg, strlen(msg), 0, (struct sockaddr *)&addr, len);
+    if (numbytes == -1) {
+        fprintf(stderr, "ERROR: multicast\n");
+    }
 }
 
 int main(int argc, char *argv[])
@@ -179,14 +117,27 @@ int main(int argc, char *argv[])
     stfd = createTcpServerSocket(&taddr);
     sufd = createUdpServerSocket(&uaddr);
 
+    struct ip_mreq join_addr;
+    memset(&join_addr, 0, sizeof(struct ip_mreq));
+    join_addr.imr_multiaddr.s_addr=inet_addr("226.0.0.1");
+    join_addr.imr_interface.s_addr=htonl(INADDR_ANY);
+
+    setsockopt(sufd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (void *)&join_addr, sizeof(join_addr));
+
     if (stfd == -1 || sufd == -1) {
         fprintf(stderr, "ERROR: socket create error\n");
         exit(1);
     }
 
+    int loopch = 0;
+    setsockopt(sufd, IPPROTO_IP, IP_MULTICAST_LOOP, (void *)&loopch, sizeof(loopch));
+
+    
     char *ip = NULL;
     localIP(&ip);
     printf("ip: %s\n", ip);
+
+    //multicast();
 
     struct timeval tm;
 
@@ -211,7 +162,14 @@ int main(int argc, char *argv[])
                 process_udp(sufd);
             }
         } else {
-            printf("Timeout\n");
+            struct sockaddr_in addr;
+            addr.sin_family = AF_INET;
+            addr.sin_port = htons(UDPPORT);
+            inet_aton("226.0.0.1", &addr.sin_addr);
+            socklen_t len = sizeof(addr);
+
+            char *msg = "notification";
+            int numbytes = sendto(sufd, msg, strlen(msg), 0, (struct sockaddr *)&addr, len);
         }
     } 
 
