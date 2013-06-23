@@ -158,7 +158,14 @@ int main(int argc, char *argv[])
                 process_udp(sufd);
             }
         } else {
-            printf("Timeout\n");
+            struct sockaddr_in addr;
+            addr.sin_family = AF_INET;
+            addr.sin_port = htons(UDPPORT);
+            inet_aton("226.0.0.1", &addr.sin_addr);
+            socklen_t len = sizeof(addr);
+
+            char *msg = "notification";
+            int numbytes = sendto(sufd, msg, strlen(msg), 0, (struct sockaddr *)&addr, len);
         }
     } 
 
