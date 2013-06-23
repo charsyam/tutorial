@@ -1,0 +1,2 @@
+void localIP();
+void broadcast();
