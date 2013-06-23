@@ -129,11 +129,15 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    int loopch = 0;
+    setsockopt(sufd, IPPROTO_IP, IP_MULTICAST_LOOP, (void *)&loopch, sizeof(loopch));
+
+    
     char *ip = NULL;
     localIP(&ip);
     printf("ip: %s\n", ip);
 
-    multicast();
+    //multicast();
 
     struct timeval tm;
 
