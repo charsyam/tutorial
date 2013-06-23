@@ -87,7 +87,7 @@ int process_child(int client_fd) {
         }
 
         if (readed > 1024) {
-            char *resp = "500 Invalid Request\r\n\r\n";
+            char *resp = "HTTP/1.0 400 Invalid Request\r\n\r\n";
             send(client_fd, resp, strlen(resp), 0);
             close(client_fd);
             return 0;
@@ -98,7 +98,7 @@ int process_child(int client_fd) {
         (buffer[1] == 'e' || buffer[1] == 'E') &&
         (buffer[2] == 't' || buffer[2] == 'T')) {
     } else {
-        char *resp = "500 Invalid Command\r\n\r\n";
+        char *resp = "HTTP/1.0 501 Invalid Command\r\n\r\n";
         send(client_fd, resp, strlen(resp), 0);
         close(client_fd);
         return 0;
@@ -109,13 +109,13 @@ int process_child(int client_fd) {
 
     struct stat buf;
     if (stat(filename, &buf) == -1) {
-        char *resp = "500 Not ExistFile\r\n\r\n";
+        char *resp = "HTTP/1.0 404 Not ExistFile\r\n\r\n";
         send(client_fd, resp, strlen(resp), 0);
         close(client_fd);
         return 0;
     }
 
-    char *resp = "200 OK\r\n";
+    char *resp = "HTTP/1.0 200 OK\r\n";
     send(client_fd, resp, strlen(resp), 0);
 
     char sizebuffer[1024];
