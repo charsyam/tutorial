@@ -5,6 +5,14 @@
 int read_xmlfile(FILE *f);
 xmlSAXHandler make_sax_handler();
 
+struct file {
+    char name[128];
+    int size;
+};
+
+struct file xmlfile[128];
+int fileindex = 0;
+
 static void OnStartElementNs(
     void *ctx,
     const xmlChar *localname,
@@ -26,8 +34,6 @@ static void OnEndElementNs(
 
 struct state {
     char *tag;
-    char *data;
-    int len;
 };
 
 static void OnCharacters(void* ctx, const xmlChar * ch, int len);
@@ -71,6 +77,10 @@ int read_xmlfile(FILE *f) {
     }
     xmlParseChunk(ctxt, chars, 0, 1);
 
+    int i = 0;
+    for (i=0; i < fileindex; i++) {
+        printf("name: %s, size: %d\n", xmlfile[i].name, xmlfile[i].size);
+    }
     xmlFreeParserCtxt(ctxt);
     xmlCleanupParser();
     return 0;
@@ -100,8 +110,7 @@ static void OnStartElementNs(
     int nb_defaulted,
     const xmlChar **attributes
 ) {
-    printf("<%s>\n", localname);
-    struct state *parseState = (struct state *)ctx;
+    struct state *parseState = (struct state *)(ctx);
     parseState->tag = localname;
 }
 
@@ -111,36 +120,40 @@ static void OnEndElementNs(
     const xmlChar* prefix,
     const xmlChar* URI
 ) {
-    struct state *parseState = (struct state *)ctx;
+    if (!strcmp(localname, "file")) {
+        fileindex++;
+    }
+
+    struct state *parseState = (struct state *)(ctx);
+    parseState->tag = "";
+/*
     if (!strcmp(parseState->tag, "name")) {
-        printf("[%s]\n</%s>\n", parseState->data, parseState->tag);
+        printf("</%s>\n", parseState->tag);
         free(parseState->data);
         parseState->data =0;
     } 
     else if (!strcmp(parseState->tag, "size")) {
-        printf("[%s]\n</%s>\n", parseState->data, parseState->tag);
+        printf("\n</%s>\n", parseState->tag);
         free(parseState->data);
         parseState->data =0;
     }
     parseState->tag = "";
+*/
 }
 
 static void OnCharacters(void *ctx, const xmlChar *ch, int len) {
     struct state *parseState = (struct state *)ctx;
 
     if (!strcmp(parseState->tag, "name")) {
-        char *data = (char *)malloc(len+1);
-        strncpy(data, (const char *)ch, len);
-        parseState->data = data;
-        parseState->len = len;
-        data[len] = (char)NULL;
+        fprintf(stderr, "%d\n", fileindex);
+        strncpy(xmlfile[fileindex].name, (const char *)ch, len);
+        xmlfile[fileindex].name[len] = 0;
     }
     else if (!strcmp(parseState->tag, "size")) {
-        char *data = (char *)malloc(len+1);
-        strncpy(data, (const char *)ch, len);
-        parseState->data = data;
-        parseState->len = len;
-        data[len] = (char)NULL;
+        char buf[1024];
+        strncpy(buf, (const char *)ch, len);
+        buf[len] = 0;
+        xmlfile[fileindex].size = atoi(buf);
     }
 }
 
