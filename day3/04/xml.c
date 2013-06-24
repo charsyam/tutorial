@@ -8,6 +8,8 @@ xmlSAXHandler make_sax_handler();
 struct file {
     char name[128];
     int size;
+    char time[128];
+    char owner[128];
 };
 
 struct file xmlfile[128];
@@ -79,7 +81,7 @@ int read_xmlfile(FILE *f) {
 
     int i = 0;
     for (i=0; i < fileindex; i++) {
-        printf("name: %s, size: %d\n", xmlfile[i].name, xmlfile[i].size);
+        printf("name: %s, size: %d, time: %s, owner: %s\n", xmlfile[i].name, xmlfile[i].size, xmlfile[i].time, xmlfile[i].owner);
     }
     xmlFreeParserCtxt(ctxt);
     xmlCleanupParser();
@@ -145,7 +147,6 @@ static void OnCharacters(void *ctx, const xmlChar *ch, int len) {
     struct state *parseState = (struct state *)ctx;
 
     if (!strcmp(parseState->tag, "name")) {
-        fprintf(stderr, "%d\n", fileindex);
         strncpy(xmlfile[fileindex].name, (const char *)ch, len);
         xmlfile[fileindex].name[len] = 0;
     }
@@ -154,6 +155,14 @@ static void OnCharacters(void *ctx, const xmlChar *ch, int len) {
         strncpy(buf, (const char *)ch, len);
         buf[len] = 0;
         xmlfile[fileindex].size = atoi(buf);
+    }
+    else if (!strcmp(parseState->tag, "time")) {
+        strncpy(xmlfile[fileindex].time, (const char *)ch, len);
+        xmlfile[fileindex].name[len] = 0;
+    }
+    else if (!strcmp(parseState->tag, "owner")) {
+        strncpy(xmlfile[fileindex].owner, (const char *)ch, len);
+        xmlfile[fileindex].name[len] = 0;
     }
 }
 
