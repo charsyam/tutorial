@@ -3,17 +3,21 @@
     <file>
         <name>test1</name>
         <size>1024</size>
+        <attr>updated</attr>
     </file>
     <file>
         <name>test2</name>
         <size>1024</size>
+        <attr>created</attr>
     </file>
     <file>
         <name>test3</name>
         <size>1024</size>
+        <attr>updated</attr>
     </file>
     <file>
         <name>test4</name>
         <size>1024</size>
+        <attr>updated</attr>
     </file>
 </files>
